@@ -1,3 +1,3 @@
 #include "WPIlib.h"
-#include "PixyI2C.h"
+#include "PixyCamera/PixyI2C.h"
 

@@ -8,6 +8,7 @@ private:
 	Talon *fl, *fr, *bl, *br;
 
 	VictorSP *gearRight, *gearLeft;
+	CameraServer *cam;
 
 	bool driven;
 	Timer *time;
@@ -30,6 +31,10 @@ private:
 
 		gearLeft = new VictorSP(4);
 		gearRight = new VictorSP(5);
+
+		cam = CameraServer::GetInstance();
+
+		cam->StartAutomaticCapture();
 	}
 
 
