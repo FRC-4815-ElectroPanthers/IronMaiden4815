@@ -37,7 +37,7 @@ public:
 	virtual ~RobotDrivePID() = default;
 
 	PIDSrcType GetPIDSrcType();
-	void setPIDSrcType();
+	void setPIDSrcType(PIDSrcType src);
 
 	void PIDWrite(double output) override;
 
