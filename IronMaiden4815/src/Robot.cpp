@@ -52,7 +52,7 @@ private:
 		driveEncoder->SetDistancePerPulse(PI/8192); // ft/s
 		driveEncoder->SetMinRate(0.005);
 
-		drive = new RobotDrivePID(fl, bl, fr, br, driveEncoder);
+		drive = new RobotDrivePID(fl, bl, fr, br, RobotDrivePID::PIDSrcType::kDisplacement);
 
 		cam = CameraServer::GetInstance();
 		cam->StartAutomaticCapture();
