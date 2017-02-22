@@ -3,6 +3,7 @@
 
 #include "RobotDrive.h"
 #include "PIDOutput.h"
+#include "WPILib.h"
 
 class RobotDrivePID: public PIDOutput, public RobotDrive {
 
@@ -16,33 +17,33 @@ public:
 	RobotDrivePID(int frontLeftMotorChannel, int rearLeftMotorChannel,
 			int frontRightMotorChannel, int rearRightMotorChannel,
 			PIDSrcType src = PIDSrcType::kDisplacement);
-	RobotDrivePID(SpeedController* leftMotor, SpeedController* rightMotor,
+	RobotDrivePID(frc::SpeedController* leftMotor, frc::SpeedController* rightMotor,
 			PIDSrcType src = PIDSrcType::kDisplacement);
-	RobotDrivePID(SpeedController& leftMotor, SpeedController& rightMotor,
+	RobotDrivePID(frc::SpeedController& leftMotor, frc::SpeedController& rightMotor,
 			PIDSrcType src = PIDSrcType::kDisplacement);
-	RobotDrivePID(SpeedController* frontLeftMotor,
-			SpeedController* rearLeftMotor, SpeedController* frontRightMotor,
-			SpeedController* rearRightMotor, PIDSrcType src = PIDSrcType::kDisplacement);
-	RobotDrivePID(SpeedController& frontLeftMotor,
-			SpeedController& rearLeftMotor, SpeedController& frontRightMotor,
-			SpeedController& rearRightMotor, PIDSrcType src = PIDSrcType::kDisplacement);
-	RobotDrivePID(std::shared_ptr<SpeedController> leftMotor,
-			std::shared_ptr<SpeedController> rightMotor, PIDSrcType src =
+	RobotDrivePID(frc::SpeedController* frontLeftMotor,
+			frc::SpeedController* rearLeftMotor, frc::SpeedController* frontRightMotor,
+			frc::SpeedController* rearRightMotor, PIDSrcType src = PIDSrcType::kDisplacement);
+	RobotDrivePID(frc::SpeedController& frontLeftMotor,
+			frc::SpeedController& rearLeftMotor, frc::SpeedController& frontRightMotor,
+			frc::SpeedController& rearRightMotor, PIDSrcType src = PIDSrcType::kDisplacement);
+	RobotDrivePID(std::shared_ptr<frc::SpeedController> leftMotor,
+			std::shared_ptr<frc::SpeedController> rightMotor, PIDSrcType src =
 					PIDSrcType::kDisplacement);
-	RobotDrivePID(std::shared_ptr<SpeedController> frontLeftMotor,
-			std::shared_ptr<SpeedController> rearLeftMotor,
-			std::shared_ptr<SpeedController> frontRightMotor,
-			std::shared_ptr<SpeedController> rearRightMotor, PIDSrcType src =
+	RobotDrivePID(std::shared_ptr<frc::SpeedController> frontLeftMotor,
+			std::shared_ptr<frc::SpeedController> rearLeftMotor,
+			std::shared_ptr<frc::SpeedController> frontRightMotor,
+			std::shared_ptr<frc::SpeedController> rearRightMotor, PIDSrcType src =
 					PIDSrcType::kDisplacement);
 	virtual ~RobotDrivePID() = default;
 
-	PIDSrcType GetPIDSrcType();
-	void setPIDSrcType(PIDSrcType src);
+	PIDSrcType GetPIDSrcType() {return pidSource;};
+	void setPIDSrcType(PIDSrcType src) { pidSource = src;};
 
 	void PIDWrite(double output) override;
 
 private:
-	PIDSrcType pidSource;
+	enum PIDSrcType pidSource;
 };
 
 #endif

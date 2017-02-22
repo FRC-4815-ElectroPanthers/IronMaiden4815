@@ -1,15 +1,27 @@
 #include "WPILib.h"
+#include "CustomClasses/RobotDrivePID.h"
+#include "CANTalon.h"
+#define PI 3.14159
+#define P_ENCODER 0.5
+#define I_ENCODER 0
+#define D_ENCODER 0
 
 class Robot: public IterativeRobot
 {
 private:
 	LiveWindow *lw = LiveWindow::GetInstance();
 	Joystick *stick;
-	Talon *fl, *fr, *bl, *br;
 
+	Talon *fl, *fr, *bl, *br;
 	VictorSP *gearRight, *gearLeft;
+	CANTalon *climbingTalon;
+	RobotDrivePID *drive;
+
+	Encoder *driveEncoder;
+	ADXRS450_Gyro *driveGyro;
 	CameraServer *cam;
 
+	PIDController *driveController;
 	bool driven;
 	Timer *time;
 	//SendableChooser *chooser;
@@ -23,6 +35,7 @@ private:
 		//chooser->AddDefault(autoNameDefault, (void*)&autoNameDefault);
 		//chooser->AddObject(autoNameCustom, (void*)&autoNameCustom);
 	    //SmartDashboard::PutData("Auto Modes", chooser);
+
 		stick = new Joystick(0);
 		fl = new Talon(0);
 		bl = new Talon(1);
@@ -31,10 +44,24 @@ private:
 
 		gearLeft = new VictorSP(4);
 		gearRight = new VictorSP(5);
+		climbingTalon = new CANTalon(1);
+
+		driveEncoder = new Encoder(1,2);
+		driveGyro = new ADXRS450_Gyro();
+
+		driveEncoder->SetDistancePerPulse(PI/8192); // ft/s
+		driveEncoder->SetMinRate(0.005);
+
+		drive = new RobotDrivePID(fl, bl, fr, br, driveEncoder);
 
 		cam = CameraServer::GetInstance();
-
 		cam->StartAutomaticCapture();
+
+		driveController = new PIDController(P_ENCODER,
+											I_ENCODER,
+											D_ENCODER,
+											driveEncoder,
+											drive);
 	}
 
 
@@ -75,18 +102,21 @@ private:
 			time->Reset();
 			//Custom Auto goes here
 		}
-			if(time->Get() < 5.0 && !driven){
-				fl->Set(0.5);
-				bl->Set(0.5);
-				fr->Set(0.5);
-				br->Set(0.5);
-
+		if(time->Get() < 5.0 && !driven){
+			fl->Set(0.5);
+			bl->Set(0.5);
+			fr->Set(0.5);
+			br->Set(0.5);
 			//Default Auto goes here
 		}
+
+		driveController->SetSetpoint(6.0);
+		driveController->Enable();
 	}
 
 	void TeleopInit()
 	{
+		driveController->Disable();
 
 	}
 
@@ -94,27 +124,45 @@ private:
 	{
 		float x = stick->GetRawAxis(0);
 		float y = stick->GetRawAxis(1);
+		float strafe = stick->GetRawAxis(2);
 
-		if(x < .3 && x > -.3)
+		if(x < .1 && x > -.1)
 			x = 0;
-		if(y < .3 && y > -.3)
+		if(y < .1 && y > -.1)
 			y = 0;
+		if(strafe < .1 && strafe > -.1)
+			strafe = 0;
 
-
+		/*
 		float Lout = y - x;
 		float Rout = y + x;
 
 		std::cout << "Lout: " << Lout << std::endl;
 		std::cout << "Rout: " << Rout << std::endl;
+		*/
 
 		if(stick->GetRawButton(1)){
 			gearRight->Set(y);
 			gearLeft->Set(-y);
-		}else{
+		}
+		else if(stick->GetRawButton(3)){
+			//Climber is only one directional
+			if(y<0){
+				y = -y;
+			}
+			climbingTalon->Set(y);
+		}
+		else{
+			climbingTalon->Set(0);
+
+			/*
 			fl->Set(-Lout);
 			fr->Set(Rout);
 			bl->Set(-Lout);
 			br->Set(Rout);
+			*/
+
+			drive->MecanumDrive_Cartesian(strafe, y, x);
 		}
 	}
 
