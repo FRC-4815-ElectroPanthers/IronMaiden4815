@@ -2,7 +2,7 @@
  * PixyFunctions.h
  *
  *  Created on: Mar 10, 2017
- *      Author: Phia
+ *      Author: 4815
  */
 
 #ifndef SRC_PIXYCAMERA_PIXYFUNCTIONS_H_
