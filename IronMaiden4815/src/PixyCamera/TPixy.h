@@ -42,6 +42,7 @@
 #define PIXY_RCS_MIN_POS            0L
 #define PIXY_RCS_MAX_POS            1000L
 #define PIXY_RCS_CENTER_POS         ((PIXY_RCS_MAX_POS-PIXY_RCS_MIN_POS)/2)
+#define PIXY_FOV					75
 
  
 enum BlockType
