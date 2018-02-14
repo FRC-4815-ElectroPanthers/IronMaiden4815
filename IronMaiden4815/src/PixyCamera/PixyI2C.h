@@ -66,7 +66,7 @@ public:
 	PixyI2C(uint8_t address=PIXY_I2C_DEFAULT_ADDR, I2C::Port port=PIXY_I2C_DEFAULT_PORT);
 	~PixyI2C();
 
-	//put Get Functions Here
+	//Put Get Functions Here
 
 	int8_t SetServos(uint16_t s0, uint16_t s1);
 	int8_t SetBrightness(uint8_t brightness);
@@ -130,8 +130,8 @@ private:
 	bool GetStart();
 	void Resize();
 
-	//mutable std::mutex m_mutex;
-	//std::thread m_getBlocks;
+	mutable std::mutex m_BlocksMutex;
+	std::thread m_GetBlocks;
 };
 
 #endif

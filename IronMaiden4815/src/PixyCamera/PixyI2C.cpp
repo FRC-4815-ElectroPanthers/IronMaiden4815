@@ -13,10 +13,19 @@ PixyI2C::PixyI2C(uint8_t address, I2C::Port port): Wire(address, port){
 	blockCount = 0;
 	blockArraySize = PIXY_INITIAL_ARRAYSIZE;
 	blocks = (Block *)malloc(sizeof(Block)*blockArraySize);
+
+	m_GetBlocks = std::thread(&PixyI2C::GetBlocks(), this);
 }
 
 PixyI2C::~PixyI2C(){
-	free(blocks);
+	{
+		std::lock_guard lock(m_BlocksMutex);
+		free(blocks);
+	}
+
+	if(m_GetBlocks.joinable()){
+		m_GetBlocks.join();
+	}
 }
 
 uint16_t PixyI2C::getWord(){
@@ -59,10 +68,14 @@ bool PixyI2C::GetStart(){
 			return false;
 
 		}else if (w==PIXY_START_WORD && lastw==PIXY_START_WORD){
+			std::lock_guard lock(m_BlocksMutex);
+
 			blockType = NORMAL_BLOCK;
 			return true;
 
 		}else if (w==PIXY_START_WORD_CC && lastw==PIXY_START_WORD){
+			std::lock_guard lock(m_BlocksMutex);
+
 			blockType = CC_BLOCK;
 			return true;
 
@@ -77,12 +90,14 @@ bool PixyI2C::GetStart(){
 }
 
 void PixyI2C::Resize(){
+	std::lock_guard lock(m_BlocksMutex);
+
 	blockArraySize += PIXY_INITIAL_ARRAYSIZE;
 	blocks = (Block *)realloc(blocks, sizeof(Block)*blockArraySize);
 }
 
-uint16_t PixyI2C::GetBlocks(uint16_t maxBlocks){
-	uint8_t i;
+uint16_t PixyI2C::GetBlocks(uint16_t maxBlocks){ //should probably change return
+	uint8_t i;									 //type to void
 	uint16_t w, checksum, sum;
 	Block *block;
 
@@ -90,13 +105,15 @@ uint16_t PixyI2C::GetBlocks(uint16_t maxBlocks){
 		if (GetStart()==false)
 			return 0;
 	}else{
+		std::lock_guard lock(m_BlocksMutex); //could be unnecessary
 		skipStart = false;
 	}
 
 	for(blockCount=0; blockCount<maxBlocks && blockCount<PIXY_MAXIMUM_ARRAYSIZE;){
 
 		checksum = getWord();
-		if (checksum==PIXY_START_WORD){ // we've reached the beginning of the next frame
+		if (checksum==PIXY_START_WORD){
+			// we've reached the beginning of the next frame
 			skipStart = true;
 			blockType = NORMAL_BLOCK;
 			//Serial.println("skip");
