@@ -25,42 +25,113 @@
 #ifndef _PIXYI2C_H
 #define _PIXYI2C_H
 
-#include "TPixy.h"
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
+#include "I2C.h"
+#include "SensorBase.h"
+//#include <support/mutex.h>
+//#include <support/condition_variable.h>
+
+// Communication/misc parameters
+#define PIXY_INITIAL_ARRAYSIZE      30
+#define PIXY_MAXIMUM_ARRAYSIZE      130
+#define PIXY_START_WORD             0xaa55
+#define PIXY_START_WORD_CC          0xaa56
+#define PIXY_START_WORDX            0x55aa
+#define PIXY_MAX_SIGNATURE          7
+#define PIXY_DEFAULT_ARGVAL         0xffff
+
+// Pixy x-y position values
+#define PIXY_MIN_X                  0L
+#define PIXY_MAX_X                  319L
+#define PIXY_MIN_Y                  0L
+#define PIXY_MAX_Y                  199L
+
+// RC-servo values
+#define PIXY_RCS_MIN_POS            0L
+#define PIXY_RCS_MAX_POS            1000L
+#define PIXY_RCS_CENTER_POS         ((PIXY_RCS_MAX_POS-PIXY_RCS_MIN_POS)/2)
+#define PIXY_FOV					75
 
 #define PIXY_I2C_DEFAULT_ADDR  0x54
 #define PIXY_I2C_DEFAULT_PORT  I2C::Port::kOnboard
 
-class LinkI2C
-{
+class PixyI2C{
 public:
-  LinkI2C(uint8_t address=PIXY_I2C_DEFAULT_ADDR, I2C::Port port=PIXY_I2C_DEFAULT_PORT): Wire(port, address)
-  {
+	PixyI2C(uint8_t address=PIXY_I2C_DEFAULT_ADDR, I2C::Port port=PIXY_I2C_DEFAULT_PORT);
+	~PixyI2C();
 
-  }
-  uint16_t getWord()
-  {
-    uint8_t c[2];
-    Wire.ReadOnly(2, c);
-    uint16_t w = (c[1] << 8) + c[0];
-    return w;
-  }
-  uint8_t getByte()
-  {
-    uint8_t *c;
-    Wire.ReadOnly(1, c);
-    return *c;
-  }
+	//put Get Functions Here
 
-  int8_t send(uint8_t *data, uint8_t len)
-  {
-    Wire.WriteBulk(data, len);
-    return len;
-  }
-  
+	int8_t SetServos(uint16_t s0, uint16_t s1);
+	int8_t SetBrightness(uint8_t brightness);
+	int8_t SetLED(uint8_t r, uint8_t g, uint8_t b);
+
 private:
-  I2C Wire;
-};
+	enum BlockType{
+	  NORMAL_BLOCK,
+	  CC_BLOCK
+	};
 
-typedef TPixy<LinkI2C> PixyI2C;
+	struct Block {
+		// print block structure!
+		void print(){
+			int i, j;
+			char buf[128], sig[6], d;
+			bool flag;
+
+			if (signature>PIXY_MAX_SIGNATURE){ // color code! (CC)
+				// convert signature number to an octal string
+				for (i=12, j=0, flag=false; i>=0; i-=3){
+					d = (signature>>i)&0x07;
+
+					if (d>0 && !flag){
+						flag = true;
+					}
+
+					if (flag){
+						sig[j++] = d + '0';
+					}
+				}
+
+				sig[j] = '\0';
+				sprintf(buf, "CC block! sig: %s (%d decimal) x: %d y: %d width: %d height: %d angle %d\n", sig, signature, x, y, width, height, angle);
+			}else{ // regular block.  Note, angle is always zero, so no need to print
+				sprintf(buf, "sig: %d x: %d y: %d width: %d height: %d\n", signature, x, y, width, height);
+			}
+			printf(buf);
+		}
+
+		uint16_t signature;
+		uint16_t x;
+		uint16_t y;
+		uint16_t width;
+		uint16_t height;
+		uint16_t angle;
+	};
+
+	I2C Wire;
+	bool  skipStart;
+	BlockType blockType;
+	uint16_t blockCount;
+	uint16_t blockArraySize;
+	Block *blocks;
+
+	uint16_t getWord();
+	uint8_t getByte();
+	int8_t send(uint8_t *data, uint8_t len);
+
+	uint16_t GetBlocks(uint16_t maxBlocks=1000);
+	bool GetStart();
+	void Resize();
+
+	//mutable std::mutex m_mutex;
+	//std::thread m_getBlocks;
+};
 
 #endif
