@@ -12,8 +12,6 @@
 //
 // end license header
 //
-// This file is for defining the link class for I2C communications.  
-//
 // Note, the PixyI2C class takes two optional arguments, the first being the I2C address 
 // of the Pixy you want to talk to and the second being the port on the RoboRIO you want to use (Onboard or MXP).
 // The default address and port are 0x54 and kOnboard respectively.
@@ -31,6 +29,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <vector>
 
 #include "I2C.h"
 #include "SensorBase.h"
@@ -116,21 +115,23 @@ private:
 	};
 
 	I2C Wire;
-	bool  skipStart;
-	BlockType blockType;
-	uint16_t blockCount;
-	uint16_t blockArraySize;
-	Block *blocks;
+	bool  m_skipStart;
+	BlockType m_blockType;
+	uint16_t m_blockCount;
+	uint16_t m_blockArraySize;
+	//Block *m_blocks;
+	std::vector<Block> m_blocks;
 
 	uint16_t getWord();
 	uint8_t getByte();
 	int8_t send(uint8_t *data, uint8_t len);
 
-	uint16_t GetBlocks(uint16_t maxBlocks=1000);
+	void GetBlocks(uint16_t maxBlocks=1000);
 	bool GetStart();
-	void Resize();
+	//void Resize();
 
-	mutable std::mutex m_BlocksMutex;
+	std::atomic_bool m_freed;
+	mutable std::mutex m_mutex;
 	std::thread m_GetBlocks;
 };
 

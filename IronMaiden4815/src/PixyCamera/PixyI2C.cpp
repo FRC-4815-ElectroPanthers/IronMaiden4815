@@ -8,23 +8,22 @@
 #include "Timer.h"
 
 PixyI2C::PixyI2C(uint8_t address, I2C::Port port): Wire(address, port){
-	skipStart = false;
-	blockType = NORMAL_BLOCK;
-	blockCount = 0;
-	blockArraySize = PIXY_INITIAL_ARRAYSIZE;
-	blocks = (Block *)malloc(sizeof(Block)*blockArraySize);
+	m_skipStart = false;
+	m_blockType = NORMAL_BLOCK;
+	m_blockCount = 0;
+	m_blockArraySize = PIXY_INITIAL_ARRAYSIZE;
+	//blocks = (Block *)malloc(sizeof(Block)*blockArraySize);
 
+	m_freed = false;
 	m_GetBlocks = std::thread(&PixyI2C::GetBlocks(), this);
 }
 
 PixyI2C::~PixyI2C(){
-	{
-		std::lock_guard lock(m_BlocksMutex);
-		free(blocks);
-	}
+	m_freed = true;
 
 	if(m_GetBlocks.joinable()){
 		m_GetBlocks.join();
+		//free(blocks);
 	}
 }
 
@@ -68,15 +67,15 @@ bool PixyI2C::GetStart(){
 			return false;
 
 		}else if (w==PIXY_START_WORD && lastw==PIXY_START_WORD){
-			std::lock_guard lock(m_BlocksMutex);
+			std::lock_guard lock(m_mutex);
 
-			blockType = NORMAL_BLOCK;
+			m_blockType = NORMAL_BLOCK;
 			return true;
 
 		}else if (w==PIXY_START_WORD_CC && lastw==PIXY_START_WORD){
-			std::lock_guard lock(m_BlocksMutex);
+			std::lock_guard lock(m_mutex);
 
-			blockType = CC_BLOCK;
+			m_blockType = CC_BLOCK;
 			return true;
 
 		}else if (w==PIXY_START_WORDX){
@@ -89,75 +88,117 @@ bool PixyI2C::GetStart(){
 
 }
 
+/*
 void PixyI2C::Resize(){
-	std::lock_guard lock(m_BlocksMutex);
+	std::lock_guard lock(m_mutex);
 
 	blockArraySize += PIXY_INITIAL_ARRAYSIZE;
 	blocks = (Block *)realloc(blocks, sizeof(Block)*blockArraySize);
 }
+*/
 
-uint16_t PixyI2C::GetBlocks(uint16_t maxBlocks){ //should probably change return
-	uint8_t i;									 //type to void
-	uint16_t w, checksum, sum;
-	Block *block;
+void PixyI2C::GetBlocks(uint16_t maxBlocks){
+	uint8_t i;
+	uint16_t w, checksum, sum, buffer[6];
+	Block temp;
+	//Block *block;
 
-	if (!skipStart){
-		if (GetStart()==false)
-			return 0;
-	}else{
-		std::lock_guard lock(m_BlocksMutex); //could be unnecessary
-		skipStart = false;
+	BlockType blockType;
+	uint16_t blockCount;
+	std::vector<Block> block;
+
+	{
+		std::lock_guard lock(m_mutex);
+		blockType = m_blockType;
 	}
 
-	for(blockCount=0; blockCount<maxBlocks && blockCount<PIXY_MAXIMUM_ARRAYSIZE;){
-
-		checksum = getWord();
-		if (checksum==PIXY_START_WORD){
-			// we've reached the beginning of the next frame
-			skipStart = true;
-			blockType = NORMAL_BLOCK;
-			//Serial.println("skip");
-			return blockCount;
-		}else if (checksum==PIXY_START_WORD_CC){
-			skipStart = true;
-			blockType = CC_BLOCK;
-			return blockCount;
-		}else if (checksum==0){
-			return blockCount;
+	while(!m_freed){
+		blockCount = 0;
+		if(!block.empty()){
+			block.clear();
 		}
 
-		if (blockCount>blockArraySize){
-			Resize();
+		if (!m_skipStart){
+			if (GetStart()==false){
+				std::lock_guard lock(m_mutex);
+
+				m_blockCount = blockCount;
+				continue; //return;
+			}
+		}else{
+			m_skipStart = false;
 		}
 
-		block = blocks + blockCount;
+		for(blockCount=0; blockCount<maxBlocks && blockCount<PIXY_MAXIMUM_ARRAYSIZE;){
 
-		for (i=0, sum=0; i<sizeof(Block)/sizeof(uint16_t); i++){
-			if (blockType==NORMAL_BLOCK && i>=5){ //skip
-				block->angle = 0;
+			checksum = getWord();
+			if (checksum==PIXY_START_WORD){
+				// we've reached the beginning of the next frame
+				m_skipStart = true;
+				blockType = NORMAL_BLOCK;
+				break;
+			}else if (checksum==PIXY_START_WORD_CC){
+				m_skipStart = true;
+				blockType = CC_BLOCK;
+				break;
+			}else if (checksum==0){
 				break;
 			}
 
+			/*
+			if (m_blockCount>m_blockArraySize){
+				m_Resize();
+			}
+
+
+			block = blocks + blockCount;
+			*/
+
+			for (i=0, sum=0; i < 6; i++){
+				if (blockType==NORMAL_BLOCK && i==5){ //skip
+					buffer[i] = 0;
+					break;
+				}
+
+				buffer[i] = getWord();
+				sum += buffer[i];
+				//*((uint16_t *)block + i) = w;
+			}
+			temp.signature = buffer[0];
+			temp.x = buffer[1];
+			temp.y = buffer[2];
+			temp.width= buffer[3];
+			temp.height = buffer[4];
+			temp.angle = buffer[5];
+
+			block.push_back(temp);
+
+			if (checksum==sum){
+				blockCount++;
+			}else{
+				printf("CheckSum Error");
+			}
+
 			w = getWord();
-			sum += w;
-			*((uint16_t *)block + i) = w;
+			if (w==PIXY_START_WORD){
+				blockType = NORMAL_BLOCK;
+			}else if (w==PIXY_START_WORD_CC){
+				blockType = CC_BLOCK;
+			}else{
+				break;
+			}
 		}
 
-		if (checksum==sum){
-			blockCount++;
-		}else{
-			printf("cs error");
-		}
+		{
+			std::lock_guard lock(m_mutex);
 
-		w = getWord();
-		if (w==PIXY_START_WORD){
-			blockType = NORMAL_BLOCK;
-		}else if (w==PIXY_START_WORD_CC){
-			blockType = CC_BLOCK;
-		}else{
-			return blockCount;
+			m_blockType = blockType;
+			m_blockCount = blockCount;
+			m_blocks = block;
 		}
 	}
+
+
 }
 
 int8_t PixyI2C::SetServos(uint16_t s0, uint16_t s1){
