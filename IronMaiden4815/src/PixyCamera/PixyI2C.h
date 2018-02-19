@@ -65,7 +65,13 @@ public:
 	PixyI2C(uint8_t address=PIXY_I2C_DEFAULT_ADDR, I2C::Port port=PIXY_I2C_DEFAULT_PORT);
 	~PixyI2C();
 
-	//Put Get Functions Here
+	uint16_t GetBlockCount();
+	uint16_t GetBlockSignature(int = 0);
+	uint16_t GetBlockX(int = 0);
+	uint16_t GetBlockY(int = 0);
+	uint16_t GetBlockWidth(int = 0);
+	uint16_t GetBlockHeight(int = 0);
+	uint16_t GetBlockAngle(int = 0);
 
 	int8_t SetServos(uint16_t s0, uint16_t s1);
 	int8_t SetBrightness(uint8_t brightness);

@@ -201,6 +201,41 @@ void PixyI2C::GetBlocks(uint16_t maxBlocks){
 
 }
 
+uint16_t PixyI2C::GetBlockCount(){
+	std::lock_guard lock(m_mutex);
+	return m_blockCount;
+}
+
+uint16_t PixyI2C::GetBlockSignature(int block){
+	std::lock_guard lock(m_mutex);
+	return m_blocks[block].signature;
+}
+
+uint16_t PixyI2C::GetBlockX(int block){
+	std::lock_guard lock(m_mutex);
+	return m_blocks[block].x;
+}
+
+uint16_t PixyI2C::GetBlockY(int block){
+	std::lock_guard lock(m_mutex);
+	return m_blocks[block].y;
+}
+
+uint16_t PixyI2C::GetBlockWidth(int block){
+	std::lock_guard lock(m_mutex);
+	return m_blocks[block].width;
+}
+
+uint16_t PixyI2C::GetBlockHeight(int block){
+	std::lock_guard lock(m_mutex);
+	return m_blocks[block].height;
+}
+
+uint16_t PixyI2C::GetBlockAngle(int block){
+	std::lock_guard lock(m_mutex);
+	return m_blocks[block].angle;
+}
+
 int8_t PixyI2C::SetServos(uint16_t s0, uint16_t s1){
 	uint8_t outBuf[6];
 
